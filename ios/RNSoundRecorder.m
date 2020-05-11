@@ -99,7 +99,7 @@ RCT_EXPORT_METHOD(start:(NSString *)path
     
     NSNumber* sampleRate = [options objectForKey:@"sampleRate"];
     if(!sampleRate) sampleRate = @16000;
-    [settings setObject:sampleRate forKey:AVSampleRateKey];
+    [settings setObject:sampleRate forKey:AVSampleRateKey]; 
     
     NSNumber* quality = [options objectForKey:@"quality"];
     if(!quality) quality = @(AVAudioQualityMax);
@@ -129,6 +129,7 @@ RCT_EXPORT_METHOD(start:(NSString *)path
     
     [_recorder prepareToRecord];
     [_recorder record];
+    _recorder.meteringEnabled = true;
     [session setActive:YES error:&err];
     
     if (err) {
@@ -220,6 +221,20 @@ RCT_EXPORT_METHOD(resume:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRej
     [_recorder record];
     
     resolve([NSNull null]);
+}
+
+RCT_EXPORT_METHOD(getAveragePower:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+  if(!_recorder) {
+        reject(@"not_recording", @"Not yet started recording", nil);
+        return;
+    }
+
+  [_recorder updateMeters];
+  float averagePower = [_recorder averagePowerForChannel:0];
+  NSNumber *averagePowerNumber = [NSNumber numberWithFloat:averagePower];
+  resolve(averagePowerNumber);
+  
 }
 
 @end
