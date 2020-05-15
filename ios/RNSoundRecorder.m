@@ -237,5 +237,14 @@ RCT_EXPORT_METHOD(getAveragePower:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
   
 }
 
+RCT_EXPORT_METHOD(isRecording:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
+{
+    if(_recorder && _recorder.isRecording) {
+        resolve(@YES);
+    } else {
+        resolve(@NO);
+    }
+}
+
 @end
   
