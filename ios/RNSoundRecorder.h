@@ -5,9 +5,11 @@
 #import "RCTBridgeModule.h"
 #endif
 
+#import <React/RCTEventEmitter.h>
 #import <AVFoundation/AVFoundation.h>
 
-@interface RNSoundRecorder : NSObject <RCTBridgeModule,AVAudioRecorderDelegate>
+@interface RNSoundRecorder : RCTEventEmitter <RCTBridgeModule,AVAudioRecorderDelegate>
 
 @end
-  
+
+

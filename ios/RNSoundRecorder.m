@@ -6,12 +6,17 @@
     AVAudioRecorder* _recorder;
     RCTPromiseResolveBlock _resolveStop;
     RCTPromiseRejectBlock _rejectStop;
+    id _listenAveragePower;
+    int _progressUpdateInterval;
+    NSDate *_prevProgressUpdateTime;
+    NSNumber *_averagePower;
 }
 
 - (dispatch_queue_t)methodQueue
 {
     return dispatch_get_main_queue();
 }
+
 RCT_EXPORT_MODULE()
 
 - (NSDictionary *)constantsToExport
@@ -136,6 +141,8 @@ RCT_EXPORT_METHOD(start:(NSString *)path
         reject(@"session_set_active_error", [[err userInfo] description], err);
         return;
     }
+
+    [self startListeningAveragePower];
     
     if(_recorder.isRecording) {
         resolve([NSNull null]);
@@ -151,6 +158,9 @@ RCT_EXPORT_METHOD(stop:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejec
         reject(@"not_recording", @"Not Recording", nil);
         return;
     }
+
+    [self stopListeningAveragePower];
+    _prevProgressUpdateTime = nil;
     
     _resolveStop = resolve;
     _rejectStop = reject;
@@ -223,6 +233,8 @@ RCT_EXPORT_METHOD(resume:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRej
     resolve([NSNull null]);
 }
 
+
+
 RCT_EXPORT_METHOD(getAveragePower:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject)
 {
   if(!_recorder) {
@@ -231,9 +243,7 @@ RCT_EXPORT_METHOD(getAveragePower:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
     }
 
   [_recorder updateMeters];
-  float averagePower = [_recorder averagePowerForChannel:0];
-  NSNumber *averagePowerNumber = [NSNumber numberWithFloat:averagePower];
-  resolve(averagePowerNumber);
+  resolve(_averagePower);
   
 }
 
@@ -244,6 +254,42 @@ RCT_EXPORT_METHOD(isRecording:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromi
     } else {
         resolve(@NO);
     }
+}
+
+- (NSArray<NSString *> *)supportedEvents
+{
+  return @[@"averagePowerChange"];
+}
+
+- (void) sendAveragePower {
+    if(!_recorder) {
+        return;
+    }
+
+    if (_prevProgressUpdateTime == nil || (([_prevProgressUpdateTime timeIntervalSinceNow] * -1000.0) >= _progressUpdateInterval)) {
+     
+        [_recorder updateMeters];
+        float averagePowerFloat = [_recorder averagePowerForChannel:0];
+        _averagePower = [NSNumber numberWithFloat:averagePowerFloat];
+
+        [self sendEventWithName:@"averagePowerChange" body:@{@"averagePower": _averagePower}];
+        _prevProgressUpdateTime = [NSDate date];
+    }
+
+}
+
+- (void)stopListeningAveragePower {
+  [_listenAveragePower invalidate];
+}
+
+- (void)startListeningAveragePower {
+    _progressUpdateInterval = 250;
+    _prevProgressUpdateTime = nil;
+
+  [self stopListeningAveragePower];
+
+  _listenAveragePower = [CADisplayLink displayLinkWithTarget:self selector:@selector(sendAveragePower)];
+  [_listenAveragePower addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
 }
 
 @end
